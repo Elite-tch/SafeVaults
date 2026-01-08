@@ -5,6 +5,8 @@ import { createConfig, WagmiProvider } from "@privy-io/wagmi";
 import { defineChain } from "viem";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http } from "viem";
+import { ProofRailsProvider } from "@proofrails/sdk/react";
+import { Toaster } from "sonner";
 
 export const flare = defineChain({
     id: 14,
@@ -77,7 +79,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         >
             <QueryClientProvider client={queryClient}>
                 <WagmiProvider config={wagmiConfig}>
-                    {children}
+                    <ProofRailsProvider apiKey={process.env.NEXT_PUBLIC_PROOFRAILS_KEY || ""}>
+                        {children}
+                        <Toaster position="top-right" theme="dark" richColors closeButton />
+                    </ProofRailsProvider>
                 </WagmiProvider>
             </QueryClientProvider>
         </PrivyProvider>

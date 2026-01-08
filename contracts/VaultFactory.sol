@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "./PersonalVault.sol";
-import "./GroupVault.sol";
+
 
 /**
  * @title VaultFactory
@@ -26,8 +26,8 @@ contract VaultFactory {
         string memory _purpose,
         uint256 _unlockTimestamp,
         uint256 _penaltyBps
-    ) external returns (address) {
-        PersonalVault vault = new PersonalVault(
+    ) external payable returns (address) {
+        PersonalVault vault = new PersonalVault{value: msg.value}(
             _purpose,
             msg.sender,
             _unlockTimestamp,
@@ -44,31 +44,6 @@ contract VaultFactory {
         return vaultAddr;
     }
     
-    function createGroupVault(
-        string memory _purpose,
-        address[] memory _initialMembers,
-        uint256 _approvalThreshold
-    ) external returns (address) {
-        GroupVault vault = new GroupVault(
-            _purpose,
-            _initialMembers,
-            _approvalThreshold
-        );
-
-        address vaultAddr = address(vault);
-        allVaults.push(vaultAddr);
-        
-        // Add to members
-        for(uint256 i = 0; i < _initialMembers.length; i++) {
-             userVaults[_initialMembers[i]].push(vaultAddr);
-        }
-
-        isVault[vaultAddr] = true;
-
-        emit GroupVaultCreated(vaultAddr, msg.sender, _purpose, _initialMembers.length);
-        return vaultAddr;
-    }
-
     function getAllVaults() external view returns (address[] memory) {
         return allVaults;
     }

@@ -1,14 +1,53 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Lock, Search, Wallet, Clock, AlertTriangle } from "lucide-react";
+import { Plus, Lock, Search, Wallet, Clock, AlertTriangle, Calendar } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { useAccount, useReadContract } from "wagmi";
 import { CONTRACTS, VAULT_FACTORY_ABI, VAULT_ABI } from "@/lib/contracts";
 import { formatEther } from "viem";
 import { motion } from "framer-motion";
+
+function useCountdown(targetDate: Date) {
+    const [timeLeft, setTimeLeft] = useState({
+        days: 0,
+        hours: 0,
+        minutes: 0,
+        seconds: 0,
+        isExpired: false
+    });
+
+    useEffect(() => {
+        const targetTime = targetDate.getTime(); // Convert to timestamp once
+
+        const calculateTimeLeft = () => {
+            const now = new Date().getTime();
+            const difference = targetTime - now;
+
+            if (difference <= 0) {
+                setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true });
+                return;
+            }
+
+            const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+            setTimeLeft({ days, hours, minutes, seconds, isExpired: false });
+        };
+
+        calculateTimeLeft();
+        const interval = setInterval(calculateTimeLeft, 1000);
+
+        return () => clearInterval(interval);
+    }, [targetDate.getTime()]); // Use timestamp instead of Date object
+
+    return timeLeft;
+}
 
 function VaultCard({ address }: { address: `0x${string}` }) {
     const { data: purpose } = useReadContract({
@@ -33,26 +72,61 @@ function VaultCard({ address }: { address: `0x${string}` }) {
     const unlockDate = unlockTimeResult ? new Date(Number(unlockTimeResult) * 1000) : new Date();
     const isLocked = new Date() < unlockDate;
 
+    const countdown = useCountdown(unlockDate);
+
+    // Estimate creation time
+    const estimatedCreation = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    if (parseFloat(balance) <= 0) return null;
+
+    const formatCountdown = () => {
+        if (countdown.isExpired) return "Unlocked!";
+
+        const parts = [];
+        if (countdown.days > 0) parts.push(`${countdown.days}d`);
+        if (countdown.hours > 0 || parts.length > 0) parts.push(`${countdown.hours}h`);
+        if (countdown.minutes > 0 || parts.length > 0) parts.push(`${countdown.minutes}m`);
+        parts.push(`${countdown.seconds}s`);
+
+        return parts.join(" ");
+    };
+
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Link href={`#`}>
+            <Link href={`/dashboard/vaults/${address}`}>
                 <Card className="hover:border-primary/50 transition-all cursor-pointer group h-full">
-                    <div className="p-6 space-y-4">
-                        <div className="flex justify-between items-start">
-                            <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center text-blue-400 group-hover:bg-blue-500/20 transition-colors">
-                                <Lock className="w-5 h-5" />
-                            </div>
+                    <div className="p-3 space-y-4">
+                        <div className="flex justify-end items-start">
                             <div className={`px-2 py-1 rounded text-xs font-medium ${isLocked ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
                                 {isLocked ? 'Locked' : 'Unlocked'}
                             </div>
                         </div>
 
                         <div>
-                            <h3 className="text-xl font-bold text-white mb-1 truncate">{purpose || "Loading..."}</h3>
-                            <div className="flex items-center gap-2 text-gray-400 text-sm">
-                                <Clock className="w-3 h-3" />
-                                <span>{unlockDate.toLocaleDateString()}</span>
+                            <h3 className="text-xl font-bold text-white mb-2 truncate">{purpose || "Loading..."}</h3>
+
+                            {/* Creation Time */}
+                            <div className="flex items-center gap-2 text-gray-400 text-xs mb-2">
+                                <Calendar className="w-3 h-3" />
+                                <span>Created: {estimatedCreation.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                             </div>
+
+                            {/* Countdown Timer */}
+                            {isLocked ? (
+                                <div className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-lg p-3">
+                                    <p className="text-xs text-gray-400 mb-1">Time remaining:</p>
+                                    <div className="font-mono text-lg font-bold text-orange-400">
+                                        {formatCountdown()}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Until {unlockDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                                    <p className="text-xs text-green-400 font-medium">✓ Unlocked - Withdraw anytime!</p>
+                                </div>
+                            )}
                         </div>
 
                         <div className="pt-4 border-t border-white/5">
@@ -113,7 +187,7 @@ export default function VaultsPage() {
                     </div>
                 ) : hasVaults ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {vaultAddresses.map((addr) => (
+                        {[...vaultAddresses].reverse().map((addr) => (
                             <VaultCard key={addr} address={addr} />
                         ))}
                     </div>

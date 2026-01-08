@@ -1,7 +1,7 @@
 // -------------------- Config --------------------
 export const CONTRACTS = {
     coston2: {
-        VaultFactory: "0x070D36A9d7475f03B4340b784c40EA3fE07E4852" as `0x${string}`,
+        VaultFactory: "0x81149a0E0eB69285362bAB5085a4CB852F2A3e07" as `0x${string}`,
     },
 } as const;
 
@@ -14,7 +14,7 @@ export const VAULT_FACTORY_ABI = [
         ],
         name: "createPersonalVault",
         outputs: [{ name: "", type: "address" }],
-        stateMutability: "nonpayable",
+        stateMutability: "payable",
         type: "function"
     },
     {

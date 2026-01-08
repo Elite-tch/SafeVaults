@@ -23,13 +23,19 @@ contract PersonalVault is AbstractVault {
         uint256 _unlockTimestamp,
         uint256 _penaltyBps,
         address _treasury
-    ) AbstractVault(_purpose, _owner) {
+    ) payable AbstractVault(_purpose, _owner) {
         require(_unlockTimestamp > block.timestamp, "Unlock time must be in future");
         require(_penaltyBps <= 10000, "Invalid basis points");
         
         unlockTimestamp = _unlockTimestamp;
         penaltyBps = _penaltyBps;
         treasury = _treasury;
+
+        // Handle initial deposit
+        if (msg.value > 0) {
+            emit Deposited(_owner, msg.value, block.timestamp);
+            _onDeposit(_owner, msg.value);
+        }
     }
 
     /**
